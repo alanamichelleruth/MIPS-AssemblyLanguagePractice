@@ -1,0 +1,194 @@
+#NAME: Alana Ruth
+
+#Reads in a line of text and outputs the following:
+        #the number of non-whitespace characters in the line
+        #the number of words in the line
+        #the max length of a word in the line
+        #the min length of a word in the line
+        #the word of max length in the line
+        #the word of min length in the line
+
+                .data
+
+buffer:         .space  81
+prompt:         .asciiz "Text? "
+white_space:    .asciiz "Line contains only white space characters.\n"
+num_spaces:     .asciiz "No. of non-whitespace characters: "
+num_words:      .asciiz "No. of words:                     "
+max_len:        .asciiz "Maximum length of a word:         "
+min_len:        .asciiz "Minimum length of a word:         "
+max_word:       .asciiz "Word of maximum length:           "
+min_word:       .asciiz "Word of minimum length:           "
+nl:             .asciiz "\n"
+
+                .text
+                .globl  main
+
+main:           la      $a0, prompt             #Start addr of prompt string
+                li      $v0, 4                  #print_string command
+                syscall
+
+#Read the string using syscall
+                li      $v0, 8                  #8 represents read_string command
+                la      $a0, buffer             #Load byte space into address
+                li      $a1, 81                 #Allot byte space for the string
+                move    $t0, $a0                #Save string to $t0
+                syscall                         #The string is read into $t0
+                move    $t4, $t0                #Copies the value of $t0 to $t4
+#Loop through the string, checking for different situations
+                li      $t1, 1                  #Set space count = 1
+                li      $t3, 0                  #Set letter count = 0
+                li      $t5, 0                  #Set word letter count = 0
+                li      $t6, 0                  #Set word count = 0
+                li      $t7, 1                  #Temp to hold max length
+                li      $t8, 80                 #Temp to hold min length
+                li      $s1, 1                  #Holds place of max word
+                li      $s2, 1                  #Holds place of min word
+
+loop:           lb      $t2, 0($t4)             #Load the first byte
+                add     $t3, $t3, 1             #letter count++
+                beqz    $t2, end_line           #If $t2 == NULL, end of line
+                beq     $t2, 9, is_blank        #Tab
+                beq     $t2, 10, is_blank       #Newline
+                beq     $t2, 32, is_blank       #Space
+                beqz    $t5, incr_words         #If word letter count == 0
+                add     $t5, $t5, 1             #word letter count ++
+                add     $t4, $t4, 1             #Increment the address
+                j       loop
+is_blank:       add     $t1, $t1, 1             #space count++
+                bgt     $t5, 0, check_minmax    #If word letter count > 0
+                li      $t5, 0                  #Reset word letter count = 0
+                add     $t4, $t4, 1             #Increment the address
+                j       loop
+
+incr_words:     add     $t6, $t6, 1             #word count++
+                add     $t5, $t5, 1             #word letter count++
+                add     $t4, $t4, 1             #Increment the address
+                j       loop
+
+check_minmax:   ble     $t5, $t8, new_min       #If word letter count <= min len
+                bge     $t5, $t7, new_max       #If word letter count >= max len
+                li      $t5, 0                  #Reset word letter count = 0
+                add     $t4, $t4, 1             #Increment the address
+                j       loop
+
+new_min:        move    $t8, $t5                #Copies value of $t5 to $t8
+                move    $s2, $t3                #Copies value of $t3 to $s2
+                bge     $t5, $t7, new_max       #If word letter count >= max len
+                li      $t5, 0                  #Reset word letter count = 0
+                add     $t4, $t4, 1             #Increment the address
+                j       loop
+
+new_max:        move    $t7, $t5                #Copies value of $t5 to $t7
+                move    $s1, $t3                #Copies value of $t3 to $s1
+                li      $t5, 0                  #Reset word letter count = 0
+                add     $t4, $t4, 1             #Increment the address
+                j       loop
+
+end_line:       bne     $t1, $t3, results       #If space count != letter count
+                la      $a0, white_space
+                li      $v0, 4
+                syscall                         #Print that line is whitespace
+                li      $v0, 10                 #10 represents exit command
+                syscall
+
+results:
+#Print the number of non-whitespace characters in the line
+                sub     $t3, $t3, $t1           #$t3 = $t3 - $t1
+                la      $a0, num_spaces
+                li      $v0, 4
+                syscall                         #Print the string num_spaces
+                move    $a0, $t3
+                li      $v0, 1
+                syscall                         #Print the calculated word letter count
+                la      $a0, nl
+                li      $v0, 4
+                syscall                         #Print a newline char
+
+#Print the number of words in the line
+                la      $a0, num_words
+                li      $v0, 4
+                syscall                         #Print the string num_words
+                move    $a0, $t6
+                li      $v0, 1
+                syscall                         #Print the calculated word count
+                la      $a0, nl
+                li      $v0, 4
+                syscall                         #Print a newline char
+
+#Print the maximum length
+                la      $a0, max_len
+                li      $v0, 4
+                syscall                         #Print the string max_len
+                move    $a0, $t7
+                li      $v0, 1
+                syscall                         #Print the calculated max length
+                la      $a0, nl
+                li      $v0, 4
+                syscall                         #Print a newline char
+
+#Print the minimum length
+                la      $a0, min_len
+                li      $v0, 4
+                syscall                         #Print the string min_len
+                move    $a0, $t8
+                li      $v0, 1
+                syscall                         #Print the calculated min length
+                la      $a0, nl
+                li      $v0, 4
+                syscall                         #Print a newline char
+
+#Find the word of maximum length
+                move    $t4, $t0
+                li      $t3, 0                  #Reset letter count = 0
+                sub     $s1, $s1, $t7           #$s1 = index of start of max word
+                sub     $s2, $s2, $t8           #$s2 = index of start of min word
+                la      $a0, max_word
+                li      $v0, 4
+                syscall                         #Print the string max_word
+
+loop_max:       lb      $t2, 0($t4)             #Load the first byte
+                add     $t3, $t3, 1             #letter count++
+                beq     $t3, $s1, print_max     #If letter count == start of max word
+                add     $t4, $t4, 1             #Increment the address
+                j       loop_max
+
+print_max:      lb      $s3, 0($t4)             #Load the first byte
+                move    $a0, $s3
+                li      $v0, 11
+                syscall                         #Prints one letter of max word
+                sub     $t7, $t7, 1
+                beqz    $t7, next2
+                add     $t4, $t4, 1             #Increment the address
+                j       print_max
+
+#Find the word of minimum length
+next2:          move    $t4, $t0
+                li      $t3, 0                  #Reset letter count = 0
+                la      $a0, nl
+                li      $v0, 4
+                syscall                         #Print the newline char
+                la      $a0, min_word
+                li      $v0, 4
+                syscall                         #Print the string min_word
+
+loop_min:       lb      $t2, 0($t4)             #Load the first byte
+                add     $t3, $t3, 1             #letter count++
+                beq     $t3, $s2, print_min     #If letter count == start of min word
+                add     $t4, $t4, 1             #Increment the address
+                j       loop_min
+
+print_min:      lb      $s3, 0($t4)             #Load the first byte
+                move    $a0, $s3
+                li      $v0, 11
+                syscall                         #Prints one letter of min word
+                sub     $t8, $t8, 1
+                beqz    $t8, done
+                add     $t4, $t4, 1             #Increment the address
+                j       print_min
+
+done:           la      $a0, nl
+                li      $v0, 4
+                syscall                         #Print the newline char
+                li      $v0, 10                 #10 represents exit command
+                syscall
